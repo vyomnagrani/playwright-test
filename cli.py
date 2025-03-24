@@ -6,6 +6,7 @@ from computers import (
     ScrapybaraUbuntu,
     LocalPlaywrightComputer,
     DockerComputer,
+    RemotePlaywrightComputer,
 )
 
 def acknowledge_safety_check_callback(message: str) -> bool:
@@ -13,7 +14,6 @@ def acknowledge_safety_check_callback(message: str) -> bool:
         f"Safety Check Warning: {message}\nDo you want to acknowledge and proceed? (y/n): "
     ).lower()
     return response.lower().strip() == "y"
-
 
 def main():
     parser = argparse.ArgumentParser(
@@ -27,6 +27,7 @@ def main():
             "browserbase",
             "scrapybara-browser",
             "scrapybara-ubuntu",
+            "remote-playwright",
         ],
         help="Choose the computer environment to use.",
         default="local-playwright",
@@ -53,6 +54,12 @@ def main():
         help="Start the browsing session with a specific URL (only for browser environments).",
         default="https://bing.com",
     )
+    parser.add_argument(
+        "--remote-url",
+        type=str,
+        help="URL of the remote Playwright instance (only for remote-playwright).",
+        default=None,
+    )
     args = parser.parse_args()
 
     computer_mapping = {
@@ -61,19 +68,22 @@ def main():
         "browserbase": BrowserbaseBrowser,
         "scrapybara-browser": ScrapybaraBrowser,
         "scrapybara-ubuntu": ScrapybaraUbuntu,
+        "remote-playwright": RemotePlaywrightComputer,
     }
 
     ComputerClass = computer_mapping[args.computer]
 
-    with ComputerClass() as computer:
+    if args.computer == "remote-playwright" and not args.remote_url:
+        raise ValueError("The --remote-url argument is required for remote-playwright.")
+
+    with ComputerClass(remote_url=args.remote_url) if args.computer == "remote-playwright" else ComputerClass() as computer:
         agent = Agent(
             computer=computer,
             acknowledge_safety_check_callback=acknowledge_safety_check_callback,
         )
         items = []
 
-
-        if args.computer in ["browserbase", "local-playwright"]:
+        if args.computer in ["browserbase", "local-playwright", "remote-playwright"]:
             if not args.start_url.startswith("http"):
                 args.start_url = "https://" + args.start_url
             agent.computer.goto(args.start_url)
@@ -95,7 +105,6 @@ def main():
             )
             items += output_items
             args.input = None
-
 
 if __name__ == "__main__":
     main()

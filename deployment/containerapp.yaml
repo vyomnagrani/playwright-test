@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: playwright-container
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: playwright
+  template:
+    metadata:
+      labels:
+        app: playwright
+    spec:
+      containers:
+      - name: playwright
+        image: mcr.microsoft.com/playwright
+        ports:
+        - containerPort: 9222
+        command: ["sh", "-c", "playwright run-server --port 9222"]
